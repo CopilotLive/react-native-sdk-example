@@ -1,143 +1,97 @@
-# React Native Copilot SDK - Example App
+This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-This example app demonstrates all major features of the React Native Copilot SDK.
+# Getting Started
 
-## Features Demonstrated
+> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
-- ✅ Basic `<CopilotView>` integration
-- ✅ `useCopilot()` hook for sending messages and receiving events
-- ✅ Tool registration with 3 example tools:
-  - `add_item_in_cart` - Adds items to shopping cart
-  - `check_order_status` - Checks order status
-  - `get_product_recommendations` - Gets product recommendations
-- ✅ `useCopilotApi()` for HTTP requests
-- ✅ Event logging and real-time status
-- ✅ Config changes (dark mode toggle)
-- ✅ Quick action buttons
-- ✅ Custom message input
-- ✅ Error handling
+## Step 1: Start Metro
 
-## Running the Example
+First, you will need to run **Metro**, the JavaScript build tool for React Native.
 
-### Prerequisites
+To start the Metro dev server, run the following command from the root of your React Native project:
 
-- Node.js 16+
-- React Native development environment set up
-- iOS: Xcode and CocoaPods
-- Android: Android Studio and SDK
+```sh
+# Using npm
+npm start
 
-### Installation
-
-```bash
-# From the example directory
-npm install
-
-# iOS only
-cd ios && pod install && cd ..
+# OR using Yarn
+yarn start
 ```
 
-### Running
+## Step 2: Build and run your app
 
-```bash
-# iOS
+With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+
+### Android
+
+```sh
+# Using npm
+npm run android
+
+# OR using Yarn
+yarn android
+```
+
+### iOS
+
+For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+
+The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+
+```sh
+bundle install
+```
+
+Then, and every time you update your native dependencies, run:
+
+```sh
+bundle exec pod install
+```
+
+For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+
+```sh
+# Using npm
 npm run ios
 
-# Android
-npm run android
+# OR using Yarn
+yarn ios
 ```
 
-## Usage
+If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
 
-1. **Launch the app** - The Copilot widget will load automatically
-2. **Wait for "Copilot is ready"** in the logs
-3. **Try quick actions** - Pre-configured messages
-4. **Send custom messages** - Type and send your own
-5. **Test tools** - Ask Copilot to:
-   - "Add product SKU-123 to my cart"
-   - "Check the status of order #12345"
-   - "Recommend some electronics"
-6. **Test API executor** - Tap "Test API Executor" to make a test HTTP request
-7. **Toggle dark mode** - See config changes applied smoothly
+This is one way to run your app — you can also build it directly from Android Studio or Xcode.
 
-## Code Walkthrough
+## Step 3: Modify your app
 
-### Main Component (`App.tsx`)
+Now that you have successfully run the app, let's make changes!
 
-The main component shows:
-- How to set up `<CopilotView>` with proper configuration
-- Event handlers: `onReady`, `onEvent`, `onError`
-- Tool registration in `useEffect`
-- Config management with `useMemo`
-- Dark mode toggle demonstrating soft config updates
+Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
 
-### Copilot Controls
+When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
 
-The `CopilotControls` component demonstrates:
-- `useCopilot()` hook usage
-- `send()` function for sending messages
-- `on()` function for event subscriptions
-- Status checking with `ready` and `status`
-- `useCopilotApi()` for making HTTP requests
+- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
+- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
 
-### Tool Registration
+## Congratulations! :tada:
 
-Three example tools are registered:
+You've successfully run and modified your React Native App. :partying_face:
 
-```typescript
-tools.register('add_item_in_cart', schema, handler);
-tools.register('check_order_status', schema, handler);
-tools.register('get_product_recommendations', schema, handler);
-```
+### Now what?
 
-Each tool:
-- Has a JSON Schema defining parameters
-- Returns a promise with results
-- Logs execution to the UI
-- Simulates API calls with delays
+- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
+- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
 
-### Event Handling
+# Troubleshooting
 
-Events are logged in real-time:
-- `conversation.updated` - New messages
-- Tool invocations and results
-- Ready state changes
-- Errors
+If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 
-## Customization
+# Learn More
 
-You can customize:
-- `BOT_NAME` - Your bot identifier
-- `USER_TOKEN` - User authentication token
-- `config` - Model, style, knowledge base, etc.
-- Tools - Add your own custom tools
-- API endpoint - Change `baseUrl` in `useCopilotApi`
+To learn more about React Native, take a look at the following resources:
 
-## Testing
-
-The example includes:
-- `testID="copilot-widget"` for E2E testing
-- Console logging for debugging
-- UI logs for visual feedback
-- Error boundaries for error handling
-
-## Troubleshooting
-
-### Widget not loading
-- Check internet connection
-- Verify script URL is accessible
-- Check console for errors
-
-### Tools not executing
-- Ensure tools are registered before use
-- Check tool names match exactly
-- Verify schema matches arguments
-
-### Config changes not applying
-- Hard changes (model, etc.) require reload
-- Soft changes (theme, etc.) apply immediately
-- Use `useMemo` to prevent unnecessary updates
-
-## Learn More
-
-See the main SDK README for full API documentation and advanced features.
-
+- [React Native Website](https://reactnative.dev) - learn more about React Native.
+- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
+- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
+- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
+- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
