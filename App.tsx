@@ -1,15 +1,15 @@
 /**
- * React Native Copilot SDK Example App
+ * Kaily React Native SDK Example App
  * Demonstrates all major features:
- * - Basic CopilotView integration
- * - useCopilot hook for sending messages and receiving events
- * - Tool registration for dynamic function calling
- * - useCopilotApi for HTTP requests
- * - Multiple configuration options
- * - Event handling
+ * - SDK initialization with proper error handling
+ * - Tool registration (single and multiple tools)
+ * - Shopping cart example with dynamic tools
+ * - Event handling with detailed logging
+ * - Context management that updates with app state
+ * - User management
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -19,391 +19,633 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
-  TextInput,
-  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import {
-  CopilotView,
-  useCopilot,
-  tools,
-  useCopilotApi,
-  type CopilotConfig,
-  type CopilotEvent,
-} from 'react-native-copilot';
+  KailySDK,
+  KailyWidget,
+  KailyTool,
+  KailyToolResult,
+  KailyEvent,
+  KailyEventType,
+  KailyUser,
+  KailyConfig,
+} from 'kaily-react-native-sdk';
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const BOT_NAME = 'RetailHelper';
-const USER_TOKEN = 'demo-user-token-123';
+const KAILY_TOKEN = 'your-kaily-token-here'; // Replace with your actual token
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  added_at: string;
+}
+
+interface LogEntry {
+  timestamp: string;
+  level: 'info' | 'success' | 'error' | 'event';
+  message: string;
+}
 
 // ============================================================================
 // Main App Component
 // ============================================================================
 
 export default function App() {
-  // State
-  const [showCopilot, setShowCopilot] = useState(true);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [customMessage, setCustomMessage] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  // SDK state
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
-  // Stable config (use useMemo to prevent unnecessary reloads)
-  const config: CopilotConfig = useMemo(
-    () => ({
-      model: 'gpt-4o',
-      style: 'friendly',
-      temperature: 0.7,
-      systemPrompt: 'You are a helpful retail assistant. Help customers with their shopping needs.',
-      knowledgeBase: ['/faq', '/return-policy', '/shipping-info'],
-      metadata: {
-        appVersion: '1.0.0',
-        platform: 'react-native',
-      },
-      ui: {
-        theme: darkMode ? 'dark' : 'light',
-        primaryColor: '#007AFF',
-        size: 'medium',
-        position: 'bottom-right',
-      },
-    }),
-    [darkMode]
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // User state
+  const [user, setUser] = useState<KailyUser>({
+    id: 'user_123',
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    attributes: {
+      tier: 'premium',
+      joinedDate: '2024-01-15',
+    },
+  });
+
+  // UI state
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [statusColor, setStatusColor] = useState<'green' | 'orange' | 'red'>(
+    'red',
   );
 
-  // Add log helper
-  const addLog = (message: string) => {
+  const sdk = KailySDK.getInstance();
+
+  // ============================================================================
+  // Helper Functions
+  // ============================================================================
+
+  const addLog = (message: string, level: LogEntry['level'] = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 50));
+    setLogs(prev => [{ timestamp, level, message }, ...prev].slice(0, 100));
   };
 
-  // Register tools on mount
-  useEffect(() => {
-    addLog('Registering tools...');
-
-    // Tool 1: Add item to cart
-    tools.register(
-      'add_item_in_cart',
-      {
-        type: 'object',
-        properties: {
-          sku: {
-            type: 'string',
-            description: 'Product SKU code',
-          },
-          qty: {
-            type: 'number',
-            description: 'Quantity to add',
-          },
-        },
-        required: ['sku', 'qty'],
-        description: 'Adds an item to the shopping cart',
-      },
-      async ({ sku, qty }) => {
-        addLog(`Tool called: add_item_in_cart(sku=${sku}, qty=${qty})`);
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        const result = {
-          success: true,
-          cartTotal: 2,
-          itemAdded: { sku, qty, price: 29.99 },
-        };
-        
-        addLog(`Tool result: ${JSON.stringify(result)}`);
-        return result;
-      }
-    );
-
-    // Tool 2: Check order status
-    tools.register(
-      'check_order_status',
-      {
-        type: 'object',
-        properties: {
-          orderId: {
-            type: 'string',
-            description: 'Order ID to check',
-          },
-        },
-        required: ['orderId'],
-        description: 'Checks the status of an order',
-      },
-      async ({ orderId }) => {
-        addLog(`Tool called: check_order_status(orderId=${orderId})`);
-        
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        
-        const result = {
-          orderId,
-          status: 'shipped',
-          trackingNumber: 'TRACK123456',
-          estimatedDelivery: '2025-11-22',
-        };
-        
-        addLog(`Tool result: ${JSON.stringify(result)}`);
-        return result;
-      }
-    );
-
-    // Tool 3: Get product recommendations
-    tools.register(
-      'get_product_recommendations',
-      {
-        type: 'object',
-        properties: {
-          category: {
-            type: 'string',
-            description: 'Product category',
-          },
-          limit: {
-            type: 'number',
-            description: 'Number of recommendations',
-          },
-        },
-        required: ['category'],
-        description: 'Gets product recommendations for a category',
-      },
-      async ({ category, limit = 5 }) => {
-        addLog(`Tool called: get_product_recommendations(category=${category}, limit=${limit})`);
-        
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        
-        const products = Array.from({ length: limit as number }, (_, i) => ({
-          id: `PROD${i + 1}`,
-          name: `${category} Product ${i + 1}`,
-          price: Math.floor(Math.random() * 100) + 20,
-          rating: (Math.random() * 2 + 3).toFixed(1),
-        }));
-        
-        addLog(`Tool result: ${products.length} products`);
-        return { products, category };
-      }
-    );
-
-    addLog('Tools registered successfully');
-
-    // Cleanup
-    return () => {
-      tools.unregister('add_item_in_cart');
-      tools.unregister('check_order_status');
-      tools.unregister('get_product_recommendations');
-      addLog('Tools unregistered');
-    };
-  }, []);
-
-  // Copilot event handlers
-  const handleReady = () => {
-    addLog('✅ Copilot is ready!');
+  const clearLogs = () => {
+    setLogs([]);
+    addLog('Logs cleared', 'info');
   };
 
-  const handleEvent = (event: CopilotEvent) => {
-    addLog(`Event: ${event.type}`);
-    if (event.type === 'conversation.updated') {
-      // addLog(`Message: ${JSON.stringify(event.data).slice(0, 100)}...`);
+  const getCartItemCount = (): number => {
+    return cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const getCartTotal = (): number => {
+    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
+  // ============================================================================
+  // Cart Operations
+  // ============================================================================
+
+  const addItemToCart = (item: CartItem) => {
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(i => i.id === item.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex].quantity += item.quantity;
+        return updated;
+      }
+      return [...prev, item];
+    });
+  };
+
+  const removeItemFromCart = (productId: string): boolean => {
+    const itemExists = cartItems.some(item => item.id === productId);
+    if (itemExists) {
+      setCartItems(prev => prev.filter(item => item.id !== productId));
+      return true;
+    }
+    return false;
+  };
+
+  // ============================================================================
+  // Tool Definitions
+  // ============================================================================
+
+  const createTools = (): KailyTool[] => {
+    // Tool 1: Add to Cart
+    const addToCartTool = new KailyTool({
+      name: 'add_to_cart',
+      description: 'Add a product to the shopping cart',
+      parameters: [
+        {
+          name: 'product_id',
+          type: 'string',
+          description: 'The ID of the product to add',
+          required: true,
+        },
+        {
+          name: 'product_name',
+          type: 'string',
+          description: 'The name of the product',
+          required: true,
+        },
+        {
+          name: 'price',
+          type: 'number',
+          description: 'The price of the product',
+          required: true,
+        },
+        {
+          name: 'quantity',
+          type: 'number',
+          description: 'The quantity to add (default: 1)',
+          defaultValue: 1,
+        },
+      ],
+      handler: async (parameters): Promise<KailyToolResult> => {
+        try {
+          const { product_id, product_name, price, quantity = 1 } = parameters;
+
+          addLog(`Tool: Adding ${quantity}x ${product_name} to cart`, 'info');
+
+          const cartItem: CartItem = {
+            id: product_id as string,
+            name: product_name as string,
+            price: price as number,
+            quantity: quantity as number,
+            added_at: new Date().toISOString(),
+          };
+
+          addItemToCart(cartItem);
+
+          // Update context
+          await sdk.setContext({
+            current_page: 'shopping',
+            cart_count: getCartItemCount() + (quantity as number),
+            user_tier: 'premium',
+            last_action: 'added_to_cart',
+          });
+
+          addLog(`Success: Added ${product_name} to cart`, 'success');
+
+          return {
+            success: true,
+            data: {
+              product_id,
+              product_name,
+              quantity,
+              cart_count: getCartItemCount() + (quantity as number),
+              message: `Successfully added ${product_name} to your cart!`,
+            },
+          };
+        } catch (error: any) {
+          addLog(`Error: ${error.message}`, 'error');
+          return {
+            success: false,
+            error: `Failed to add product to cart: ${error.message}`,
+          };
+        }
+      },
+    });
+
+    // Tool 2: Get Cart Items
+    const getCartItemsTool = new KailyTool({
+      name: 'get_cart_items',
+      description: 'Get all items currently in the shopping cart',
+      parameters: [],
+      handler: async (): Promise<KailyToolResult> => {
+        try {
+          addLog('Tool: Getting cart items', 'info');
+
+          const cartData = {
+            items: cartItems,
+            count: getCartItemCount(),
+            total: getCartTotal(),
+            currency: 'USD',
+          };
+
+          addLog(
+            `Success: Retrieved ${cartItems.length} cart items`,
+            'success',
+          );
+
+          return {
+            success: true,
+            data: cartData,
+          };
+        } catch (error: any) {
+          addLog(`Error: ${error.message}`, 'error');
+          return {
+            success: false,
+            error: `Failed to get cart items: ${error.message}`,
+          };
+        }
+      },
+    });
+
+    // Tool 3: Remove from Cart
+    const removeFromCartTool = new KailyTool({
+      name: 'remove_from_cart',
+      description: 'Remove an item from the shopping cart',
+      parameters: [
+        {
+          name: 'product_id',
+          type: 'string',
+          description: 'The ID of the product to remove',
+          required: true,
+        },
+      ],
+      handler: async (parameters): Promise<KailyToolResult> => {
+        try {
+          const { product_id } = parameters;
+
+          addLog(`Tool: Removing product ${product_id} from cart`, 'info');
+
+          const removed = removeItemFromCart(product_id as string);
+
+          if (!removed) {
+            return {
+              success: false,
+              error: `Product ${product_id} not found in cart`,
+            };
+          }
+
+          // Update context
+          await sdk.setContext({
+            current_page: 'shopping',
+            cart_count: getCartItemCount(),
+            user_tier: 'premium',
+            last_action: 'removed_from_cart',
+          });
+
+          addLog(`Success: Removed product from cart`, 'success');
+
+          return {
+            success: true,
+            data: {
+              product_id,
+              cart_count: getCartItemCount(),
+              message: `Successfully removed product from cart`,
+            },
+          };
+        } catch (error: any) {
+          addLog(`Error: ${error.message}`, 'error');
+          return {
+            success: false,
+            error: `Failed to remove product: ${error.message}`,
+          };
+        }
+      },
+    });
+
+    // Tool 4: Get User Info
+    const getUserInfoTool = new KailyTool({
+      name: 'get_user_info',
+      description: 'Get current user information',
+      parameters: [],
+      handler: async (): Promise<KailyToolResult> => {
+        try {
+          addLog('Tool: Getting user info', 'info');
+
+          addLog(`Success: Retrieved user info for ${user.name}`, 'success');
+
+          return {
+            success: true,
+            data: user,
+          };
+        } catch (error: any) {
+          addLog(`Error: ${error.message}`, 'error');
+          return {
+            success: false,
+            error: `Failed to get user info: ${error.message}`,
+          };
+        }
+      },
+    });
+
+    return [
+      addToCartTool,
+      getCartItemsTool,
+      removeFromCartTool,
+      getUserInfoTool,
+    ];
+  };
+
+  // ============================================================================
+  // SDK Initialization
+  // ============================================================================
+
+  const initializeSDK = async () => {
+    if (isInitialized || isInitializing) {
+      return;
+    }
+
+    setIsInitializing(true);
+    setStatusColor('orange');
+    addLog('Initializing Kaily SDK...', 'info');
+
+    try {
+      const config: KailyConfig = {
+        token: KAILY_TOKEN,
+        debugMode: true,
+        enableTelemetry: true,
+        user: user,
+        context: {
+          current_page: 'home',
+          cart_count: 0,
+          user_tier: 'premium',
+        },
+        appearance: {
+          primaryColor: '#007AFF',
+          backgroundColor: '#FFFFFF',
+          textColor: '#212121',
+          title: 'Shopping Assistant',
+          showHeader: true,
+          showTimestamps: true,
+        },
+        voiceConfig: {
+          enabled: true,
+          pushToTalkEnabled: false,
+          ttsEnabled: true,
+          language: 'en-US',
+        },
+      };
+
+      await sdk.initialize(config);
+      addLog('✓ SDK initialized successfully', 'success');
+
+      // Register tools
+      addLog('Registering tools...', 'info');
+      const tools = createTools();
+      await sdk.registerTools(tools);
+      addLog(`✓ Registered ${tools.length} tools`, 'success');
+
+      setIsInitialized(true);
+      setStatusColor('green');
+      addLog('✓ Kaily SDK is ready!', 'success');
+    } catch (error: any) {
+      addLog(`✗ Initialization failed: ${error.message}`, 'error');
+      setStatusColor('red');
+      Alert.alert('Initialization Error', error.message);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
-  const handleError = (error: Error) => {
-    addLog(`❌ Error: ${error.message}`);
-    console.error('Copilot error:', error);
-  };
+  // ============================================================================
+  // Event Handling
+  // ============================================================================
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const eventStream = sdk.getEventStream();
+
+    const handleEvent = (event: KailyEvent) => {
+      const eventType = event.type;
+      addLog(`Event: ${eventType}`, 'event');
+
+      switch (event.type) {
+        case KailyEventType.ConversationLoaded:
+          addLog('✓ Chat conversation loaded', 'success');
+          break;
+
+        case KailyEventType.ConversationFailedToLoad:
+          addLog(`✗ Chat failed to load: ${event.data?.message}`, 'error');
+          break;
+
+        case KailyEventType.UserMessage:
+          addLog(`User: ${event.data?.message}`, 'info');
+          break;
+
+        case KailyEventType.BotMessage:
+          addLog(`Bot: ${event.data?.message}`, 'info');
+          break;
+
+        case KailyEventType.Error:
+          addLog(`✗ Error: ${event.data?.message}`, 'error');
+          break;
+
+        case KailyEventType.Telemetry:
+          addLog(`Telemetry: ${event.data?.event_name}`, 'event');
+          break;
+
+        default:
+          break;
+      }
+    };
+
+    eventStream.on('event', handleEvent);
+
+    return () => {
+      eventStream.off('event', handleEvent);
+    };
+  }, [isInitialized]);
+
+  // ============================================================================
+  // Update Context on Cart Changes
+  // ============================================================================
+
+  useEffect(() => {
+    if (isInitialized && sdk.isInitialized()) {
+      sdk
+        .setContext({
+          current_page: 'shopping',
+          cart_count: getCartItemCount(),
+          cart_total: getCartTotal(),
+          user_tier: 'premium',
+        })
+        .catch(err => {
+          addLog(`Failed to update context: ${err.message}`, 'error');
+        });
+    }
+  }, [cartItems, isInitialized]);
+
+  // ============================================================================
+  // Render
+  // ============================================================================
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      
+      <StatusBar barStyle="dark-content" />
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Copilot SDK Example</Text>
-        <View style={styles.headerControls}>
-          <Text style={styles.label}>Dark Mode</Text>
-          <Switch value={darkMode} onValueChange={setDarkMode} />
-        </View>
+        <Text style={styles.headerTitle}>Kaily SDK Example</Text>
+        <View
+          style={[
+            styles.statusIndicator,
+            {
+              backgroundColor:
+                statusColor === 'green'
+                  ? '#34C759'
+                  : statusColor === 'orange'
+                  ? '#FF9500'
+                  : '#FF3B30',
+            },
+          ]}
+        />
       </View>
 
-      {/* Main Content */}
-      <View style={styles.content}>
-        {/* Copilot View */}
-        {showCopilot && (
-          <View style={styles.copilotContainer}>
-            <Text style={styles.sectionTitle}>Copilot Widget</Text>
-            <CopilotView
-              botName={BOT_NAME}
-              token={USER_TOKEN}
-              config={config}
-              style={styles.copilot}
-              testID="copilot-widget"
-              onReady={handleReady}
-              onEvent={handleEvent}
-              onError={handleError}
-              backgroundColor={darkMode ? '#1c1c1e' : '#ffffff'}
-            />
+      <ScrollView style={styles.content}>
+        {/* Initialize Section */}
+        {!isInitialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Get Started</Text>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.primaryButton,
+                isInitializing && styles.buttonDisabled,
+              ]}
+              onPress={initializeSDK}
+              disabled={isInitializing}
+            >
+              {isInitializing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Initialize SDK</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.helperText}>
+              Initialize the SDK to start using Kaily AI assistant
+            </Text>
           </View>
         )}
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          <Text style={styles.sectionTitle}>Controls</Text>
-          
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setShowCopilot((prev) => !prev)}
-          >
-            <Text style={styles.buttonText}>
-              {showCopilot ? 'Hide' : 'Show'} Copilot
-            </Text>
-          </TouchableOpacity>
-
-          <CopilotControls 
-            customMessage={customMessage}
-            setCustomMessage={setCustomMessage}
-            addLog={addLog}
-          />
-        </View>
-
-        {/* Logs */}
-        <View style={styles.logsContainer}>
-          <View style={styles.logsHeader}>
-            <Text style={styles.sectionTitle}>Event Logs</Text>
-            <TouchableOpacity onPress={() => setLogs([])}>
-              <Text style={styles.clearButton}>Clear</Text>
+        {/* Chat Section */}
+        {isInitialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>AI Assistant</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={() => setShowChat(!showChat)}
+            >
+              <Text style={styles.buttonText}>
+                {showChat ? 'Close Chat' : 'Open Chat'}
+              </Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.logs}>
-            {logs.map((log, index) => (
-              <Text key={index} style={styles.logText}>
-                {log}
-              </Text>
-            ))}
-            {logs.length === 0 && (
-              <Text style={styles.logTextEmpty}>No logs yet...</Text>
+        )}
+
+        {/* Shopping Cart */}
+        {isInitialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Shopping Cart ({getCartItemCount()} items)
+            </Text>
+            {cartItems.length === 0 ? (
+              <Text style={styles.emptyText}>Your cart is empty</Text>
+            ) : (
+              <>
+                {cartItems.map(item => (
+                  <View key={item.id} style={styles.cartItem}>
+                    <View style={styles.cartItemInfo}>
+                      <Text style={styles.cartItemName}>{item.name}</Text>
+                      <Text style={styles.cartItemDetails}>
+                        ${item.price.toFixed(2)} × {item.quantity}
+                      </Text>
+                    </View>
+                    <Text style={styles.cartItemTotal}>
+                      ${(item.price * item.quantity).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
+                <View style={styles.cartTotal}>
+                  <Text style={styles.cartTotalLabel}>Total:</Text>
+                  <Text style={styles.cartTotalAmount}>
+                    ${getCartTotal().toFixed(2)}
+                  </Text>
+                </View>
+              </>
             )}
-          </ScrollView>
+          </View>
+        )}
+
+        {/* User Info */}
+        {isInitialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>User Information</Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.userInfoLabel}>Name:</Text>
+              <Text style={styles.userInfoValue}>{user.name}</Text>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userInfoLabel}>Email:</Text>
+              <Text style={styles.userInfoValue}>{user.email}</Text>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userInfoLabel}>Tier:</Text>
+              <Text style={styles.userInfoValue}>{user.attributes?.tier}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Logs Section */}
+        {isInitialized && (
+          <View style={styles.section}>
+            <View style={styles.logsHeader}>
+              <Text style={styles.sectionTitle}>Event Logs</Text>
+              <TouchableOpacity onPress={clearLogs}>
+                <Text style={styles.clearButton}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.logsContainer}>
+              {logs.length === 0 ? (
+                <Text style={styles.emptyText}>No logs yet</Text>
+              ) : (
+                logs.map((log, index) => (
+                  <View key={index} style={styles.logEntry}>
+                    <Text
+                      style={[
+                        styles.logLevel,
+                        log.level === 'success' && styles.logLevelSuccess,
+                        log.level === 'error' && styles.logLevelError,
+                        log.level === 'event' && styles.logLevelEvent,
+                      ]}
+                    >
+                      ●
+                    </Text>
+                    <Text style={styles.logTimestamp}>[{log.timestamp}]</Text>
+                    <Text style={styles.logMessage}>{log.message}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Chat Widget Modal */}
+      {showChat && isInitialized && (
+        <View style={styles.chatModal}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.chatTitle}>Shopping Assistant</Text>
+            <TouchableOpacity onPress={() => setShowChat(false)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <KailyWidget
+            config={sdk.currentConfig!}
+            bridge={sdk.getBridge()}
+            onConversationLoaded={() => addLog('Chat loaded', 'success')}
+            onConversationFailedToLoad={error =>
+              addLog(`Chat error: ${error}`, 'error')
+            }
+            onClose={() => setShowChat(false)}
+            style={styles.chatWidget}
+          />
         </View>
-      </View>
+      )}
     </SafeAreaView>
-  );
-}
-
-// ============================================================================
-// Copilot Controls Component (demonstrates useCopilot hook)
-// ============================================================================
-
-interface CopilotControlsProps {
-  customMessage: string;
-  setCustomMessage: (message: string) => void;
-  addLog: (message: string) => void;
-}
-
-function CopilotControls({ customMessage, setCustomMessage, addLog }: CopilotControlsProps) {
-  const { ready, status, send, on } = useCopilot();
-  const api = useCopilotApi({
-    baseUrl: 'https://jsonplaceholder.typicode.com',
-  });
-
-  // Subscribe to events
-  useEffect(() => {
-    const unsubscribe = on('conversation.updated', (event) => {
-      // Handle event (already logged in parent)
-    });
-
-    return unsubscribe;
-  }, [on]);
-
-  // Quick actions
-  const quickActions = [
-    { label: 'Ask about returns', message: 'What is your return policy?' },
-    { label: 'Check shipping', message: 'How long does shipping take?' },
-    { label: 'Product recommendations', message: 'Can you recommend some electronics?' },
-    { label: 'Order status', message: 'Check status of order #12345' },
-  ];
-
-  const handleQuickAction = (message: string) => {
-    if (!ready) {
-      Alert.alert('Not Ready', 'Copilot is not ready yet. Please wait...');
-      return;
-    }
-    addLog(`Sending: "${message}"`);
-    send(message);
-  };
-
-  const handleCustomSend = () => {
-    if (!customMessage.trim()) {
-      Alert.alert('Empty Message', 'Please enter a message');
-      return;
-    }
-    if (!ready) {
-      Alert.alert('Not Ready', 'Copilot is not ready yet. Please wait...');
-      return;
-    }
-    addLog(`Sending: "${customMessage}"`);
-    send(customMessage);
-    setCustomMessage('');
-  };
-
-  const handleApiTest = async () => {
-    addLog('Testing API executor...');
-    const result = await api.execute({
-      method: 'GET',
-      path: '/posts/1',
-    });
-
-    if (result.error) {
-      addLog(`API error: ${result.error}`);
-      Alert.alert('API Error', result.error);
-    } else {
-      addLog(`API success: ${JSON.stringify(result.data).slice(0, 100)}...`);
-      Alert.alert('API Success', 'Check logs for response');
-    }
-  };
-
-  return (
-    <View>
-      {/* Status */}
-      <View style={styles.statusRow}>
-        <Text style={styles.statusLabel}>Status:</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            ready ? styles.statusBadgeReady : styles.statusBadgeNotReady,
-          ]}
-        >
-          <Text style={styles.statusText}>{status}</Text>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <Text style={styles.subSectionTitle}>Quick Actions</Text>
-      {quickActions.map((action, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.quickActionButton}
-          onPress={() => handleQuickAction(action.message)}
-        >
-          <Text style={styles.quickActionText}>{action.label}</Text>
-        </TouchableOpacity>
-      ))}
-
-      {/* Custom Message */}
-      <Text style={styles.subSectionTitle}>Custom Message</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter custom message..."
-        value={customMessage}
-        onChangeText={setCustomMessage}
-        onSubmitEditing={handleCustomSend}
-      />
-      <TouchableOpacity style={styles.button} onPress={handleCustomSend}>
-        <Text style={styles.buttonText}>Send Custom Message</Text>
-      </TouchableOpacity>
-
-      {/* API Test */}
-      <TouchableOpacity style={styles.apiButton} onPress={handleApiTest}>
-        <Text style={styles.buttonText}>Test API Executor</Text>
-      </TouchableOpacity>
-    </View>
   );
 }
 
@@ -428,141 +670,197 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  headerControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  label: {
-    color: '#fff',
-    fontSize: 14,
+  statusIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   content: {
     flex: 1,
-    padding: 16,
   },
-  copilotContainer: {
-    flex: 1,
-    marginBottom: 16,
+  section: {
+    backgroundColor: '#fff',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#666',
-  },
-  copilot: {
-    flex: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  controls: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 12,
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 8,
     color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusBadgeReady: {
-    backgroundColor: '#34C759',
-  },
-  statusBadgeNotReady: {
-    backgroundColor: '#FF9500',
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 12,
+    padding: 14,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  quickActionButton: {
-    backgroundColor: '#E5E5EA',
-    padding: 10,
-    borderRadius: 6,
-    marginTop: 6,
-  },
-  quickActionText: {
-    color: '#007AFF',
+  helperText: {
     fontSize: 14,
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  apiButton: {
-    backgroundColor: '#5856D6',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+    color: '#666',
     marginTop: 8,
+    textAlign: 'center',
   },
-  logsContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  cartItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  cartItemInfo: {
     flex: 1,
+  },
+  cartItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  cartItemDetails: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cartItemTotal: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  cartTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#007AFF',
+  },
+  cartTotalLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  cartTotalAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  userInfoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  userInfoValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
   },
   logsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   clearButton: {
     color: '#007AFF',
     fontSize: 14,
     fontWeight: '600',
   },
-  logs: {
-    flex: 1,
+  logsContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 12,
+    maxHeight: 300,
   },
-  logText: {
+  logEntry: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  logLevel: {
     fontSize: 12,
-    fontFamily: 'Courier',
-    color: '#333',
-    marginBottom: 4,
+    marginRight: 6,
+    color: '#666',
   },
-  logTextEmpty: {
-    fontSize: 14,
+  logLevelSuccess: {
+    color: '#34C759',
+  },
+  logLevelError: {
+    color: '#FF3B30',
+  },
+  logLevelEvent: {
+    color: '#007AFF',
+  },
+  logTimestamp: {
+    fontSize: 11,
     color: '#999',
-    textAlign: 'center',
-    marginTop: 20,
+    marginRight: 8,
+    fontFamily: 'Courier',
+  },
+  logMessage: {
+    flex: 1,
+    fontSize: 12,
+    color: '#333',
+    fontFamily: 'Courier',
+  },
+  chatModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#007AFF',
+  },
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  chatWidget: {
+    flex: 1,
   },
 });
