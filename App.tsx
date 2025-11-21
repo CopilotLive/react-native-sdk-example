@@ -139,7 +139,7 @@ export default function App() {
   // Tool Definitions
   // ============================================================================
 
-  const createTools = (): KailyTool[] => {
+  const createTools = useCallback((): KailyTool[] => {
     // Tool 1: Add to Cart
     const addToCartTool = new KailyTool({
       name: 'add_to_cart',
@@ -337,7 +337,7 @@ export default function App() {
       removeFromCartTool,
       getUserInfoTool,
     ];
-  };
+  }, [cartItems, user]);
 
   // ============================================================================
   // SDK Initialization
@@ -382,15 +382,12 @@ export default function App() {
       await sdk.initialize(config);
       addLog('✓ SDK initialized successfully', 'success');
 
-      // Register tools
-      addLog('Registering tools...', 'info');
-      const tools = createTools();
-      await sdk.registerTools(tools);
-      addLog(`✓ Registered ${tools.length} tools`, 'success');
-
       setIsInitialized(true);
-      setStatusColor('green');
-      addLog('✓ Kaily SDK is ready!', 'success');
+      setStatusColor('orange');
+
+      // Open chat to create WebView
+      setShowChat(true);
+      addLog('Opening chat widget...', 'info');
     } catch (error: any) {
       addLog(`✗ Initialization failed: ${error.message}`, 'error');
       setStatusColor('red');
@@ -409,13 +406,25 @@ export default function App() {
 
     const eventStream = sdk.getEventStream();
 
-    const handleEvent = (event: KailyEvent) => {
+    const handleEvent = async (event: KailyEvent) => {
       const eventType = event.type;
       addLog(`Event: ${eventType}`, 'event');
 
       switch (event.type) {
         case KailyEventType.ConversationLoaded:
           addLog('✓ Chat conversation loaded', 'success');
+
+          // Register tools after WebView is ready
+          try {
+            addLog('Registering tools...', 'info');
+            const tools = createTools();
+            await sdk.registerTools(tools);
+            addLog(`✓ Registered ${tools.length} tools`, 'success');
+            setStatusColor('green');
+            addLog('✓ Kaily SDK is ready!', 'success');
+          } catch (error: any) {
+            addLog(`✗ Failed to register tools: ${error.message}`, 'error');
+          }
           break;
 
         case KailyEventType.ConversationFailedToLoad:
