@@ -22,7 +22,7 @@ const config = {
       path.resolve(sdkRoot, 'node_modules'),
     ],
     extraNodeModules: {
-      'kaily-react-native-sdk': sdkRoot,
+      '@kailyai/react-native-sdk': sdkRoot,
       // Force React and React Native to always resolve from the example app's node_modules
       // This prevents multiple React instances when the SDK has React in its node_modules
       'react': path.resolve(projectRoot, 'node_modules/react'),
@@ -31,7 +31,7 @@ const config = {
     // Custom resolver to use source files directly for the SDK
     resolveRequest: (context, moduleName, platform) => {
       // If resolving the SDK package, prefer source files over compiled lib files
-      if (moduleName === 'kaily-react-native-sdk') {
+      if (moduleName === '@kailyai/react-native-sdk') {
         // Try to resolve to source index.ts first (for development)
         const sourceIndex = path.resolve(sdkRoot, 'index.ts');
         if (fs.existsSync(sourceIndex)) {
@@ -50,7 +50,7 @@ const config = {
         }
       }
       
-      // For sub-paths like 'kaily-react-native-sdk/something', resolve normally
+      // For sub-paths like '@kailyai/react-native-sdk/something', resolve normally
       // Default resolution for other modules
       return context.resolveRequest(context, moduleName, platform);
     },
