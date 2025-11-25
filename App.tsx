@@ -36,7 +36,7 @@ import {
 // Configuration
 // ============================================================================
 
-const KAILY_TOKEN = 'a3c91dc3-6add-46f4-b5a9-2fb4f0d090a0'; // Replace with your actual token
+const KAILY_TOKEN = 'Your Kaily Token'; // Replace with your actual token
 
 // ============================================================================
 // Types
