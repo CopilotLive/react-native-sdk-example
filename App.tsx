@@ -36,7 +36,7 @@ import {
 // Configuration
 // ============================================================================
 
-const KAILY_TOKEN = 'Your Kaily Token'; // Replace with your actual token
+const KAILY_TOKEN = 'your token here'; // Replace with your actual token
 
 // ============================================================================
 // Types
@@ -65,6 +65,7 @@ export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // Cart state
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -387,6 +388,7 @@ export default function App() {
 
       // Open chat to create WebView
       setShowChat(true);
+      setIsChatLoading(true);
       addLog('Opening chat widget...', 'info');
     } catch (error: any) {
       addLog(`✗ Initialization failed: ${error.message}`, 'error');
@@ -645,13 +647,27 @@ export default function App() {
           <KailyWidget
             config={sdk.currentConfig!}
             bridge={sdk.getBridge()}
-            onConversationLoaded={() => addLog('Chat loaded', 'success')}
-            onConversationFailedToLoad={error =>
-              addLog(`Chat error: ${error}`, 'error')
-            }
+            onConversationLoaded={() => {
+              setIsChatLoading(false);
+              addLog('Chat loaded', 'success');
+            }}
+            onConversationFailedToLoad={error => {
+              setIsChatLoading(false);
+              addLog(`Chat error: ${error}`, 'error');
+            }}
+            onDeepLinkReceived={url => {
+              addLog(`Deep Link Received: ${url}`, 'event');
+              console.log('[DeepLink]', url);
+            }}
             onClose={() => setShowChat(false)}
             style={styles.chatWidget}
           />
+          {isChatLoading && (
+            <View style={styles.chatLoadingOverlay}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Loading chat...</Text>
+            </View>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -871,5 +887,22 @@ const styles = StyleSheet.create({
   },
   chatWidget: {
     flex: 1,
+  },
+  chatLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
