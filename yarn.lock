@@ -1344,8 +1344,10 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@kailyai/react-native-sdk@file:..":
-  version "1.0.0"
+"@kailyai/react-native-sdk@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@kailyai/react-native-sdk/-/react-native-sdk-1.1.2.tgz#4c810ff00cd7734d37c4b4e86921c0b632edf763"
+  integrity sha512-u367FWOoEPHw44KGNi1H8yJZ5o6lQi0LNkG2G/oO3buNnd/qHVpO61/VPicf+9ySW2K2R6vCXxspQGEsq9ttaw==
   dependencies:
     eventemitter3 "^5.0.0"
     react-native-webview "^13.0.0"

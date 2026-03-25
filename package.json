@@ -14,7 +14,7 @@
     "react-native": "0.82.1",
     "react-native-webview": "^13.6.0",
     "eventemitter3": "^5.0.0",
-    "@kailyai/react-native-sdk": "file:.."
+    "@kailyai/react-native-sdk": "1.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
