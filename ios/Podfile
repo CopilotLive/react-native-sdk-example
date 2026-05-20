@@ -30,5 +30,22 @@ target 'CopilotExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Xcode 26 / Clang 17+: fmt 11.0.2's consteval ctor mis-evaluates under
+    # the new constant-evaluator. fmt/base.h unconditionally #defines
+    # FMT_USE_CONSTEVAL from feature tests, so a -D override gets clobbered.
+    # Patch the source header to take the consteval branch off the table.
+    # Fixed upstream in fmt 11.1.x; this hook is idempotent.
+    fmt_base = File.join(installer.sandbox.root, 'fmt/include/fmt/base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      needle  = "#elif defined(__cpp_consteval)\n#  define FMT_USE_CONSTEVAL 1"
+      replace = "#elif defined(__cpp_consteval)\n#  define FMT_USE_CONSTEVAL 0 // patched: Xcode 26 consteval evaluator"
+      if content.include?(needle)
+        File.chmod(0644, fmt_base)
+        File.write(fmt_base, content.sub(needle, replace))
+        Pod::UI.puts "[fmt patch] Disabled FMT_USE_CONSTEVAL for Xcode 26 compatibility".green
+      end
+    end
   end
 end
