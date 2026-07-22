@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@kailyai/react-native-sdk':
-        specifier: /Users/rajjadon/copilot/Boltic/package/kaily-react-sdk-attachment-CPLT-1650/packages/react-native-client
-        version: link:../Boltic/package/kaily-react-sdk-attachment-CPLT-1650/packages/react-native-client
+        specifier: 1.1.7
+        version: 1.1.7(react-native@0.82.1(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)
       eventemitter3:
         specifier: ^5.0.0
         version: 5.0.4
@@ -879,6 +879,22 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kailyai/react-native-sdk@1.1.7':
+    resolution: {integrity: sha512-z2M3FBoZ4hxNTm1rBrDkQ0FVQxzOib4DJsZ4lbKKfz9mxjrGAMxTRX1A8XXt/hkNCqdu4Kje3wez3OsQGWNZNQ==}
+    peerDependencies:
+      '@bam.tech/react-native-image-resizer': '>=3.0.0'
+      '@react-native-documents/picker': '>=12.0.0'
+      react: '>=16.8.0'
+      react-native: '>=0.60.0'
+      react-native-image-picker: '>=7.0.0'
+    peerDependenciesMeta:
+      '@bam.tech/react-native-image-resizer':
+        optional: true
+      '@react-native-documents/picker':
+        optional: true
+      react-native-image-picker:
+        optional: true
 
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     resolution: {integrity: sha512-54/JRvkLIzzDWshCWfuhadfrfZVPiElY8Fcgmg1HroEly/EDSszzhBAsarCux+D/kOslTRquNzuyGSmUSTTHGg==}
@@ -4544,6 +4560,13 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kailyai/react-native-sdk@1.1.7(react-native@0.82.1(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)':
+    dependencies:
+      eventemitter3: 5.0.4
+      react: 19.1.1
+      react-native: 0.82.1(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1)
+      react-native-webview: 13.16.1(react-native@0.82.1(@babel/core@7.29.0)(@react-native-community/cli@20.0.0(typescript@5.9.3))(@react-native/metro-config@0.82.1(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.1.1))(react@19.1.1)
 
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     dependencies:
