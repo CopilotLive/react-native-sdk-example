@@ -10,11 +10,14 @@
     "test": "jest"
   },
   "dependencies": {
+    "@bam.tech/react-native-image-resizer": "^3.0.11",
+    "@kailyai/react-native-sdk": "1.1.7",
+    "@react-native-documents/picker": "^12.0.1",
+    "eventemitter3": "^5.0.0",
     "react": "19.1.1",
     "react-native": "0.82.1",
-    "react-native-webview": "^13.6.0",
-    "eventemitter3": "^5.0.0",
-    "@kailyai/react-native-sdk": "1.1.7"
+    "react-native-image-picker": "^8.2.1",
+    "react-native-webview": "^13.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
